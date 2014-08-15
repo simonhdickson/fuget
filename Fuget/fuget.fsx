@@ -1,4 +1,5 @@
-﻿#r "System.IO.Compression.FileSystem"
+﻿module Fuget
+#r "System.IO.Compression.FileSystem"
 #r "System.Xml.Linq.dll"
 #r "System.Web.dll"
 open System
