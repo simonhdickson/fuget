@@ -48,7 +48,7 @@ let printLibs libs =
     printfn "Add these to the top of your script file:"
     libs
     |> Seq.map toRelativePath
-    |> Seq.iter (printfn """#r "%s" """)
+    |> Seq.iter (printfn """#r @"%s" """)
 
 let getPackageUri xml =
     let doc = XDocument.Parse xml in
