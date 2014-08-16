@@ -9,6 +9,11 @@ open System.Xml
 open System.Xml.Linq
 open System.Web
 
+let isUnix = Environment.OSVersion.Platform = PlatformID.Unix
+let isMacOS = Environment.OSVersion.Platform = PlatformID.MacOSX
+let isLinux = int System.Environment.OSVersion.Platform |> fun p -> (p = 4) || (p = 6) || (p = 128)
+let isMono = isLinux || isUnix || isMacOS
+
 type Version = Latest | Version of string
 
 let inline (++) left right = Path.Combine(left, right)
@@ -22,13 +27,19 @@ let downloadString (url:string) =
     HttpUtility.UrlPathEncode url
     |> client.DownloadString
 
+let extract zip destination =
+    if isMono then
+        let zipProcess = System.Diagnostics.Process.Start("unzip", sprintf" -d %s -q %s" destination zip)
+        zipProcess.WaitForExit()
+    else System.IO.Compression.ZipFile.ExtractToDirectory(zip, destination)
+
 let unpack name folder (url:string) =
     let destination = folder ++ name
-    let nupkg = destination ++ (name + ".nupkg")
+    let nupkg = folder ++ (name + ".nupkg")
     if Directory.Exists destination then Directory.Delete (destination, true)
     Directory.CreateDirectory destination |> ignore
     downloadFile nupkg (Uri url)
-    System.IO.Compression.ZipFile.ExtractToDirectory(nupkg, destination)
+    extract nupkg destination
     destination
 
 let (|FolderExists|_|) lib root =
@@ -48,7 +59,7 @@ let getLibs = function
     | _ -> failwith "unsupported nuget package"
 
 let printLibs libs =
-    printfn "Add these to the top of your script file:"
+    printfn "Evaluate or add these to your script file:"
     libs
     |> Seq.map toRelativePath
     |> Seq.iter (printfn """#r @"%s" """)
