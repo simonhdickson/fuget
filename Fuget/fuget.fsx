@@ -55,9 +55,28 @@ module FugetInternal =
             |> Seq.map (fun i -> i.Value.Split([|':'|]) |> Array.toList)
             |> Seq.choose (function id :: version :: _ -> Some (id, Version version) | _ -> None)
 
+    let rec allPackages packageName version =
+        seq {
+            let dependencies =
+                getNugetPackage packageName version
+                |> downloadString
+                |> parseDependencies
+            yield packageName, version
+            yield! dependencies |> Seq.collect (fun (i,_) -> allPackages i Latest)
+        }
+
+    let rec allPackagesLocal packageName =
+        seq {
+            let dependencies =
+                File.ReadAllText("fuget" ++ packageName ++ packageName + ".nupkg")
+                |> parseDependencies
+            yield packageName
+            yield! dependencies |> Seq.collect (fun (i,_) -> allPackagesLocal i)
+        }
+
 open FugetInternal
 
-let fulibs packages =
+let fulibs packageName =
     let toRelativePath (file:string) = file.Remove(0, __SOURCE_DIRECTORY__.Length + 1)
     
     let (|FolderExists|_|) lib root =
@@ -70,14 +89,16 @@ let fulibs packages =
         | FolderExists ((++)"lib" "net45")  files
         | FolderExists ((++)"lib" "net40")  files
         | FolderExists ((++)"lib" "net35")  files
-        | FolderExists "lib"                files -> files
+        | FolderExists "lib"                files
+        | FolderExists "tools"              files -> files
         | _ -> Seq.empty
 
     let printLibs libs =
         printfn "Evaluate or add these to your script file:"
         libs |> Seq.map toRelativePath |> Seq.iter (printfn """#r @"%s" """)
 
-    packages
+    packageName
+    |> allPackagesLocal
     |> Seq.collect (fun package -> getLibs (fugetFolder ++ package))
     |> printLibs
 
@@ -90,24 +111,13 @@ let fuget (packageName, version) =
         downloadFile nupkg (Uri url)
         extract nupkg destination
 
-    let rec allPackages packageName version =
-        seq {
-            let dependencies =
-                getNugetPackage packageName version
-                |> downloadString
-                |> parseDependencies
-            yield packageName, version
-            yield! dependencies |> Seq.collect (fun (i,_) -> allPackages i Latest)
-        }
-    let packages = allPackages packageName version
-
-    packages
+    allPackages packageName version
     |> Seq.map (fun (id, version) -> id, getNugetPackage id version)
     |> Seq.map (fun (id, uri) -> id, downloadString uri)
     |> Seq.map (fun (id, xml) -> id, parsePackageUri xml)
     |> Seq.iter (fun (id, uri) -> unpack id fugetFolder uri)
 
-    fulibs (Seq.map fst packages)
+    fulibs packageName
 
 let fulist() =
     Directory.EnumerateDirectories(fugetFolder)
@@ -164,5 +174,3 @@ let fuhelp () =
     printfn "fufind id                  - searches for packages names containing a string"
     printfn "fulist ()                  - list installed packages"
     printfn "fupdate ()                 - downloads the latest version of fuget"
-
-#load "fuget.fsx"
