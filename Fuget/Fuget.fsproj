@@ -44,6 +44,7 @@
   <ItemGroup>
     <None Include="fuget.fsx" />
     <None Include="Example.fsx" />
+    <None Include="FakeExample.fsx" />
   </ItemGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
