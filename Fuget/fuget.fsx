@@ -68,7 +68,7 @@ module FugetInternal =
     let rec allPackagesLocal packageName =
         seq {
             let dependencies =
-                File.ReadAllText("fuget" ++ packageName ++ packageName + ".nupkg")
+                File.ReadAllText(__SOURCE_DIRECTORY__ ++ "fuget" ++ packageName ++ packageName + ".nuspec")
                 |> parseDependencies
             yield packageName
             yield! dependencies |> Seq.collect (fun (i,_) -> allPackagesLocal i)
