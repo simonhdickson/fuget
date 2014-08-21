@@ -10,7 +10,7 @@ open System.Xml
 open System.Xml.Linq
 open System.Web
 
-type Version = Latest | Version of string
+type Version = Latest | LatestStable | Version of string
 
 module FugetInternal =
     let isUnix = Environment.OSVersion.Platform = PlatformID.Unix
@@ -32,7 +32,8 @@ module FugetInternal =
         
     let getNugetPackage id = function
         | Version version -> sprintf "https://www.nuget.org/api/v2/Packages(Id='%s',Version='%s')" id version
-        | Latest          -> sprintf "https://www.nuget.org/api/v2/Packages()?$filter=Id eq '%s' and IsLatestVersion" id
+        | Latest          -> sprintf "https://www.nuget.org/api/v2/Packages()?$filter=Id eq '%s' and IsAbsoluteLatestVersion" id
+        | LatestStable    -> sprintf "https://www.nuget.org/api/v2/Packages()?$filter=Id eq '%s' and IsLatestVersion" id
 
     let extract zip destination =
         if isMono then
@@ -101,10 +102,10 @@ let fuget (packageName, version) =
     let packages = allPackages packageName version
 
     packages
-    |> Seq.map (fun (id, version) -> getNugetPackage id version)
-    |> Seq.map downloadString
-    |> Seq.map parsePackageUri
-    |> Seq.iter (unpack packageName fugetFolder)
+    |> Seq.map (fun (id, version) -> id, getNugetPackage id version)
+    |> Seq.map (fun (id, uri) -> id, downloadString uri)
+    |> Seq.map (fun (id, xml) -> id, parsePackageUri xml)
+    |> Seq.iter (fun (id, uri) -> unpack id fugetFolder uri)
 
     fulibs (Seq.map fst packages)
 
@@ -131,13 +132,13 @@ let fudelete packageName =
 
 let fufind id =
     let find id =
-        sprintf "https://www.nuget.org/api/v2/Packages()?$filter=substringof('%s',Id) and IsLatestVersion&$top=10" id
+        sprintf "https://www.nuget.org/api/v2/Packages()?$filter=substringof('%s',Id) and IsAbsoluteLatestVersion&$top=10" id
         |> downloadString
 
     let getNames xml =
         let doc = XDocument.Parse xml in
             doc.Descendants().Elements()
-            |> Seq.filter(fun  i -> i.Name.LocalName = "title")
+            |> Seq.filter(fun i -> i.Name.LocalName = "title")
             |> Seq.map (fun i -> i.Value)
             |> Seq.filter (fun i -> i <> "Packages")
             |> List.ofSeq
@@ -157,9 +158,11 @@ let fupdate () =
 
 let fuhelp () =
     printfn "The following commands available:"
-    printfn "fuget packageName    - install package"
-    printfn "fudelete packageName - delete package"
-    printfn "fulibs packageName   - prints all includes needed to use package"
-    printfn "fufind id            - searches for packages names containing a string"
-    printfn "fulist ()            - list installed packages"
-    printfn "fupdate ()           - downloads the latest version of fuget"
+    printfn "fuget(packageName, verson) - install package"
+    printfn "fudelete packageName       - delete package"
+    printfn "fulibs packageName         - prints all includes needed to use package"
+    printfn "fufind id                  - searches for packages names containing a string"
+    printfn "fulist ()                  - list installed packages"
+    printfn "fupdate ()                 - downloads the latest version of fuget"
+
+#load "fuget.fsx"
