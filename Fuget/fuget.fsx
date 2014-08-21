@@ -94,8 +94,10 @@ let fulibs packageName =
         | _ -> Seq.empty
 
     let printLibs libs =
-        printfn "Evaluate or add these to your script file:"
-        libs |> Seq.map toRelativePath |> Seq.iter (printfn """#r @"%s" """)
+        match List.ofSeq libs with
+        | [] ->   printfn "Unknown package format, please report this package"
+        | libs -> printfn "Evaluate or add these to your script file:"
+                  libs |> Seq.map toRelativePath |> Seq.iter (printfn """#r @"%s" """)
 
     packageName
     |> allPackagesLocal
