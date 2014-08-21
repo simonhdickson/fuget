@@ -1,5 +1,4 @@
 ﻿// run using: fsi FakeExample.fsx
-// or fsharpi FakeExample.fsx on Mono
 #load "fuget.fsx"
 fuget ("FAKE", LatestStable)
 #r @"fuget\FAKE\tools\FakeLib.dll" 
